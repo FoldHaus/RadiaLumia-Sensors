@@ -7,7 +7,8 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
 #define OSCPATH "/lx/channel/4/pattern/2/wind"
 
-int packetNum = 0;
+int packetNum = 0;      // packet number for testing only
+float paramValue = 0;
 
 //IPAddress lxServer(192,168,42,65);
 IPAddress lxServer(10,1,1,10);  // for testing on a switch
@@ -80,8 +81,6 @@ void setup() {
   Serial.print("My IP address: ");
   Serial.println(Ethernet.localIP());
 
-
-
   Serial.print("LX IP address: ");
   Serial.println(lxServer);
   Serial.print("LX port: ");
@@ -89,21 +88,28 @@ void setup() {
 }
 
 void loop() {
-  oscMessage();
+  oscMessage();     // send the OSC message
+  delay(5000);      // send one message every 5 secs
 }
 
 void oscMessage() {
 
+    // configure the address and content of the OSC message
     OSCMessage msg("/lx/channel/4/pattern/2/wind");
-    msg.add(0.7);
-    
+    paramValue = (float)random(100) / 100;    // randomly generate a number between 0 and 1
+    msg.add(paramValue);
+
+    // create and send the UDP packet
     Udp.beginPacket(lxServer, lxPort);    
     msg.send(Udp);   
     Udp.endPacket();
-    
+
+    // debugging content printed to the Serial
     packetNum++;
     Serial.print("sent packet ");
-    Serial.println(packetNum);
+    Serial.print(packetNum);
+    Serial.print(" with value ");
+    Serial.println(paramValue);
     
     msg.empty(); //free space occupied by message
 }
