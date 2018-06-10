@@ -1,2 +1,2 @@
 # RadiaLumia-Sensors
-Code for listening to Radia's sensor inputs and sending messages to the central computer
+Arduino code for listening to Radia's sensor inputs and sending messages to the central computer
