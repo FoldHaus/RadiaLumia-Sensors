@@ -11,7 +11,7 @@
 
 #include "HX711.h"
 
-#define calibration_factor -7050.0  // This value should generally work, but TODO to calibrate properly
+#define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
 #define STAY_OPEN 5000              // Keep the entrance open for 5 seconds after receiving a reading
 #define TRIGGER WEIGHT 50           // Min of 50 lbs to trigger the entrance to open
