@@ -175,7 +175,7 @@ public:
   char* getDnsDomainName();
   char* getHostName();
   
-  int beginWithDHCP(uint8_t *, unsigned long timeout = 60000, unsigned long responseTimeout = 5000);  
+  int beginWithDHCP(uint8_t *, unsigned long timeout = 3000, unsigned long responseTimeout = 1000);
   int checkLease();
 };
 

@@ -1,5 +1,4 @@
 /*
-
  Teensy + Feather adapter pinout:
   5 -> CLK
   6 -> DOUT1
@@ -9,8 +8,7 @@
   AREF -> VDD
   GND -> GND
  
- The HX711 board can be powered from 2.7V to 5V
- 
+ The HX711 board can be powered from 2.7V to 5V 
 */
 
 #include "HX711.h"
@@ -42,18 +40,18 @@ boolean entranceOpen = 0;           // 0 for closed; 1 for open
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-#define OSC_PATH "/lx/master/effect/2/wind"
+#define OSC_PATH "/lx/master/effect/2/lcv"
 
 int packetNum = 0;      // packet number for testing only
 float paramValue = 0;
 
-IPAddress lxServer(192,168,42,65);
-//IPAddress lxServer(10,1,1,10);  // for testing on a switch
+IPAddress lxServer(192,168,1,10);
+//IPAddress lxServer(192,168,42,65);  // Nathalie home
 int lxPort = 3030;
 
 // Set the static IP address to use if the DHCP fails to assign
-IPAddress ip(192, 168, 42, 200);
-//IPAddress ip(10, 1, 1, 20);    // for testing on a switch
+IPAddress ip(192,168,1,11);
+//IPAddress ip(192, 168, 42, 200);    // Nathalie home
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
@@ -86,7 +84,7 @@ EthernetUDP Udp;
 void setup() {
   // ------------------ Setup for load cells ------------------
   
-  Serial.begin(9600);
+  Serial.begin(9600);  
   Serial.println("Starting up our three load cells");
 
   scale1.set_scale(calibration_factor); // assign calibration factor
@@ -115,9 +113,6 @@ void setup() {
   while (!Serial); // wait for serial port to connect.
 #endif
 
-  // Open serial communications and wait for port to open:
-  Serial.begin(115200);
-  delay(1000);
   Serial.println("\nHello! I am the Ethernet FeatherWing");
 
   Ethernet.init(WIZ_CS);

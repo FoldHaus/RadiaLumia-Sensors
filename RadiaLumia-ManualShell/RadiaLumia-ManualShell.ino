@@ -1,5 +1,4 @@
 /*
-
  Teensy + Feather adapter pinout:
   5 -> CLK
   6 -> DOUT
@@ -8,7 +7,6 @@
   GND -> GND
  
  The HX711 board can be powered from 2.7V to 5V
- 
 */
 
 #include "HX711.h"
@@ -31,19 +29,19 @@ HX711 scale(DOUT, CLK);
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-// TODO -- Update this path to the right one for the manual shells
-#define OSC_PATH "/lx/master/effect/2/wind"
+//#define OSC_PATH "/lx/master/effect/2/lcv"
+#define OSC_PATH "/lx/master/effect/2/lcv"
 
 int packetNum = 0;      // packet number for testing only
 float paramValue = 0;
 
-IPAddress lxServer(192,168,42,65);
-//IPAddress lxServer(10,1,1,10);  // for testing on a switch
+IPAddress lxServer(192,168,1,10);
+//IPAddress lxServer(192,168,42,65);  // Nathalie home
 int lxPort = 3030;
 
 // Set the static IP address to use if the DHCP fails to assign
-IPAddress ip(192, 168, 42, 200);
-//IPAddress ip(10, 1, 1, 20);    // for testing on a switch
+IPAddress ip(192, 168, 1, 11);
+//IPAddress ip(192, 168, 42, 200);  // Nathalie home
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
@@ -140,7 +138,7 @@ void loop() {
   float paramValue = map(scale.get_units(), 0, 50, 0, 1); // map the force in lbs to the range 0-1
   oscMessage(paramValue);
 
-  delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
+  delay(CHECK_INTERVAL);
 }
 
 // FUNCTIONS START HERE

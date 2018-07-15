@@ -25,7 +25,7 @@ HX711 scale(DOUT, CLK);
 int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("Starting up our load cell");
 
   scale.set_scale(calibration_factor); // This value is obtained by using the SparkFun_HX711_Calibration sketch
