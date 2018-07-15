@@ -1,9 +1,11 @@
 /*
 
- Arduino pin 2 -> HX711 CLK
- 3 -> DAT
- 5V -> VCC
- GND -> GND
+ Teensy + Feather adapter pinout:
+  3 -> CLK
+  4 -> DOUT
+  3V -> VCC
+  AREF -> VDD
+  GND -> GND
  
  The HX711 board can be powered from 2.7V to 5V
  
@@ -16,8 +18,8 @@
 #define STAY_OPEN 5000              // Keep the entrance open for 5 seconds after receiving a reading
 #define TRIGGER WEIGHT 50           // Min of 50 lbs to trigger the entrance to open
 
-#define DOUT  3
-#define CLK  2
+#define DOUT  4
+#define CLK  3
 
 HX711 scale(DOUT, CLK);
 int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
