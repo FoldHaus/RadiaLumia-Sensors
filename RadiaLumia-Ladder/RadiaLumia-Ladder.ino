@@ -2,7 +2,9 @@
 
  Teensy + Feather adapter pinout:
   5 -> CLK
-  6 -> DOUT
+  6 -> DOUT1
+  9 -> DOUT2
+  10 -> DOUT3
   3V -> VCC
   AREF -> VDD
   GND -> GND
@@ -21,14 +23,20 @@
 
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
-#define STAY_OPEN 5000              // Keep the entrance open for 5 seconds after receiving a reading
-#define TRIGGER WEIGHT 50           // Min of 50 lbs to trigger the entrance to open
+#define STAY_OPEN 8000              // Keep the entrance open for 8 seconds after receiving a reading
+#define TRIGGER_WEIGHT 50.0         // Min of 50 lbs to trigger the entrance to open
 
-#define DOUT  6
+#define DOUT1  6                    // load cell 1 data input
+#define DOUT2  9                    // load cell 2 data input
+#define DOUT3  10                   // load cell 3 data input
 #define CLK  5
 
-HX711 scale(DOUT, CLK);
+HX711 scale1(DOUT1, CLK);
+HX711 scale2(DOUT2, CLK);
+HX711 scale3(DOUT3, CLK);
+
 int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
+boolean entranceOpen = 0;           // 0 for closed; 1 for open
 
 // ------------------ Configuration for network messaging ------------------
 
@@ -76,13 +84,19 @@ EthernetUDP Udp;
 // SETUP STARTS HERE
 
 void setup() {
-  // ------------------ Setup for load cell ------------------
+  // ------------------ Setup for load cells ------------------
   
   Serial.begin(9600);
-  Serial.println("Starting up our load cell");
+  Serial.println("Starting up our three load cells");
 
-  scale.set_scale(calibration_factor); // This value is obtained by using the SparkFun_HX711_Calibration sketch
-  scale.tare();	// Assuming there is no weight on the scale at start up, reset the scale to 0
+  scale1.set_scale(calibration_factor); // assign calibration factor
+  scale1.tare();	// Assuming there is no weight on the scale at start up, reset the scale to 0
+
+  scale2.set_scale(calibration_factor);
+  scale2.tare();
+
+  scale3.set_scale(calibration_factor);
+  scale3.tare();
 
   Serial.println("Readings:");
 
@@ -134,25 +148,39 @@ void setup() {
 
 void loop() {
   Serial.print("Reading: ");
-  Serial.print(scale.get_units(), 1); // scale.get_units() returns a float
+
+  Serial.print(scale1.get_units(), 1); // scale.get_units() returns a float
+  Serial.print(" ");
+  Serial.print(scale2.get_units(), 1);
+  Serial.print(" ");
+  Serial.print(scale3.get_units(), 1);
+
   Serial.print(" lbs"); // You can change this to kg but you'll need to refactor the calibration_factor
   Serial.println();
 
-//  float paramValue = map((float)random(50), 0.0, 50.0, 0.0, 1.0); // use 0-50 lbs for testing
-  float paramValue = map(scale.get_units(), 0, 50, 0, 1); // map the force in lbs to the range 0-1
-  oscMessage(paramValue);
+  // trigger the sensor team if at least one of the load cells is over weight
+  int triggered = (scale1.get_units() > TRIGGER_WEIGHT) || 
+                  (scale2.get_units() > TRIGGER_WEIGHT) || 
+                  (scale3.get_units() > TRIGGER_WEIGHT);
 
-  // TODO for Nathalie -- update the load cell code to open/close the entrance rather than mapping values, 
-  // which will be more useful for the anemometer
- 
-  if (stayOpenCounter < STAY_OPEN) {
-    // keep sending an OSC message to LX to keep the entrance open
-    stayOpenCounter += CHECK_INTERVAL;
+  if (entranceOpen) {
+    if (triggered) {
+      stayOpenCounter = 0;                    // reset the open delay
+    } else {
+      if (stayOpenCounter > STAY_OPEN) {      // check whether we've been open past the delay
+        oscMessage(0);                        // if so, close the entrance
+      }
+      else {
+        stayOpenCounter += CHECK_INTERVAL;    // increment the stayOpenCounter
+      }
+    }
   } else {
-    // send an OSC message to close the entrance
-    stayOpenCounter = 0;
+    if (triggered) {                          // if the entrance was closed, but triggered
+      oscMessage(1);                          // open the entrance
+      stayOpenCounter = 0;                    // reset the open delay
+    }
   }
-  
+
   delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
 }
 
@@ -162,7 +190,6 @@ void oscMessage(float paramValue) {
 
     // configure the address and content of the OSC message
     OSCMessage msg(OSC_PATH);
-//   paramValue = (float)random(100) / 100;    // randomly generate a number between 0 and 1
     msg.add(paramValue);
 
     // create and send the UDP packet

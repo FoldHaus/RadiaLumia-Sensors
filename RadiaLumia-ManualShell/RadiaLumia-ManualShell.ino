@@ -17,23 +17,21 @@
 #include <EthernetUdp2.h>
 #include <OSCMessage.h>
 
-// ------------------ Configuration for the load cells ------------------
+// ------------------ Configuration for the load cell ------------------
 
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
-#define STAY_OPEN 5000              // Keep the entrance open for 5 seconds after receiving a reading
-#define TRIGGER WEIGHT 50           // Min of 50 lbs to trigger the entrance to open
 
 #define DOUT  6
 #define CLK  5
 
 HX711 scale(DOUT, CLK);
-int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
 
 // ------------------ Configuration for network messaging ------------------
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
+// TODO -- Update this path to the right one for the manual shells
 #define OSC_PATH "/lx/master/effect/2/wind"
 
 int packetNum = 0;      // packet number for testing only
@@ -142,17 +140,6 @@ void loop() {
   float paramValue = map(scale.get_units(), 0, 50, 0, 1); // map the force in lbs to the range 0-1
   oscMessage(paramValue);
 
-  // TODO for Nathalie -- update the load cell code to open/close the entrance rather than mapping values, 
-  // which will be more useful for the anemometer
- 
-  if (stayOpenCounter < STAY_OPEN) {
-    // keep sending an OSC message to LX to keep the entrance open
-    stayOpenCounter += CHECK_INTERVAL;
-  } else {
-    // send an OSC message to close the entrance
-    stayOpenCounter = 0;
-  }
-  
   delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
 }
 
@@ -162,7 +149,6 @@ void oscMessage(float paramValue) {
 
     // configure the address and content of the OSC message
     OSCMessage msg(OSC_PATH);
-//   paramValue = (float)random(100) / 100;    // randomly generate a number between 0 and 1
     msg.add(paramValue);
 
     // create and send the UDP packet

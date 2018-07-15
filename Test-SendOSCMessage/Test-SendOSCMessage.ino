@@ -1,36 +1,7 @@
-/*
-
- Teensy + Feather adapter pinout:
-  5 -> CLK
-  6 -> DOUT
-  3V -> VCC
-  AREF -> VDD
-  GND -> GND
- 
- The HX711 board can be powered from 2.7V to 5V
- 
-*/
-
-#include "HX711.h"
 #include <SPI.h>
 #include <Ethernet2.h>
 #include <EthernetUdp2.h>
 #include <OSCMessage.h>
-
-// ------------------ Configuration for the load cells ------------------
-
-#define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
-#define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
-#define STAY_OPEN 5000              // Keep the entrance open for 5 seconds after receiving a reading
-#define TRIGGER WEIGHT 50           // Min of 50 lbs to trigger the entrance to open
-
-#define DOUT  6
-#define CLK  5
-
-HX711 scale(DOUT, CLK);
-int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
-
-// ------------------ Configuration for network messaging ------------------
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
@@ -73,21 +44,7 @@ EthernetUDP Udp;
   #define WIZ_CS 10
 #endif
 
-// SETUP STARTS HERE
-
 void setup() {
-  // ------------------ Setup for load cell ------------------
-  
-  Serial.begin(9600);
-  Serial.println("Starting up our load cell");
-
-  scale.set_scale(calibration_factor); // This value is obtained by using the SparkFun_HX711_Calibration sketch
-  scale.tare();	// Assuming there is no weight on the scale at start up, reset the scale to 0
-
-  Serial.println("Readings:");
-
-  // ------------------ Setup for networking ------------------
-  
 #if defined(WIZ_RESET)
   pinMode(WIZ_RESET, OUTPUT);
   digitalWrite(WIZ_RESET, HIGH);
@@ -130,39 +87,16 @@ void setup() {
   Serial.println(lxPort);
 }
 
-// LOOP STARTS HERE
-
 void loop() {
-  Serial.print("Reading: ");
-  Serial.print(scale.get_units(), 1); // scale.get_units() returns a float
-  Serial.print(" lbs"); // You can change this to kg but you'll need to refactor the calibration_factor
-  Serial.println();
-
-//  float paramValue = map((float)random(50), 0.0, 50.0, 0.0, 1.0); // use 0-50 lbs for testing
-  float paramValue = map(scale.get_units(), 0, 50, 0, 1); // map the force in lbs to the range 0-1
-  oscMessage(paramValue);
-
-  // TODO for Nathalie -- update the load cell code to open/close the entrance rather than mapping values, 
-  // which will be more useful for the anemometer
- 
-  if (stayOpenCounter < STAY_OPEN) {
-    // keep sending an OSC message to LX to keep the entrance open
-    stayOpenCounter += CHECK_INTERVAL;
-  } else {
-    // send an OSC message to close the entrance
-    stayOpenCounter = 0;
-  }
-  
-  delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
+  oscMessage();     // send the OSC message
+  delay(5000);      // send one message every 5 secs
 }
 
-// FUNCTIONS START HERE
-
-void oscMessage(float paramValue) {
+void oscMessage() {
 
     // configure the address and content of the OSC message
     OSCMessage msg(OSC_PATH);
-//   paramValue = (float)random(100) / 100;    // randomly generate a number between 0 and 1
+    paramValue = (float)random(100) / 100;    // randomly generate a number between 0 and 1
     msg.add(paramValue);
 
     // create and send the UDP packet
