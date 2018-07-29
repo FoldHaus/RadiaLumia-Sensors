@@ -8,7 +8,7 @@
   AREF -> VDD
   GND -> GND
  
- The HX711 board can be powered from 2.7V to 5V 
+ The HX711 board can be powered from 2.7V to 5V
 */
 
 #include "HX711.h"
@@ -17,35 +17,31 @@
 #include <EthernetUdp2.h>
 #include <OSCMessage.h>
 
-// ------------------ Configuration for the load cells ------------------
+// ------------------ Configuration for the load cell ------------------
 
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
-#define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
-#define STAY_OPEN 10000             // Keep the entrance open for 10 seconds after receiving a reading
-#define TRIGGER_WEIGHT 50.0         // Min of 50 lbs to trigger the entrance to open
-
-#define OPEN 1
-#define CLOSED 0
+#define CHECK_INTERVAL 500          // Delay in ms between sensor checks
+#define VARIANCE 0.01               // difference in reading required to send a new value to LX
+#define NUM_MSHELLS 3               // total number of manual shells
 
 #define DOUT1  6                    // load cell 1 data input
 #define DOUT2  9                    // load cell 2 data input
-#define DOUT3  4                   // load cell 3 data input
+#define DOUT3  4                    // load cell 3 data input
 #define CLK    5
 
-HX711 scale1(DOUT1, CLK);
-HX711 scale2(DOUT2, CLK);
-HX711 scale3(DOUT3, CLK);
-
-int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
-boolean entranceOpen = 0;           // 0 for closed; 1 for open
+//HX711 scale1(DOUT1, CLK);
+//HX711 scale2(DOUT2, CLK);
+//HX711 scale3(DOUT3, CLK);
 
 // ------------------ Configuration for network messaging ------------------
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-#define OSC_PATH "/sensor/ladder/weighted"
+const char* oscPath[ ] = {"/sensor/mshell/1/pull", "/sensor/mshell/2/pull", "/sensor/mshell/3/pull"};
+float currentState[ ] = {0, 0, 0};    // hold the current state of load cell values here
+HX711 scale[ ] = { {DOUT1, CLK}, {DOUT2, CLK}, {DOUT3, CLK} };
 
-int packetNum = 0;      // packet number for testing only
+int packetNum = 0;                    // packet number for testing only
 float paramValue = 0;
 
 IPAddress lxServer(192,168,1,10);
@@ -53,8 +49,8 @@ IPAddress lxServer(192,168,1,10);
 int lxPort = 3030;
 
 // Set the static IP address to use if the DHCP fails to assign
-IPAddress ip(192,168,1,11);
-//IPAddress ip(192, 168, 42, 200);    // Nathalie home
+IPAddress ip(192, 168, 1, 11);
+//IPAddress ip(192, 168, 42, 200);  // Nathalie home
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
@@ -85,19 +81,15 @@ EthernetUDP Udp;
 // SETUP STARTS HERE
 
 void setup() {
-  // ------------------ Setup for load cells ------------------
+  // ------------------ Setup for load cell ------------------
   
-  Serial.begin(9600);  
-  Serial.println("Starting up our three load cells");
+  Serial.begin(9600);
+  Serial.println("Starting up our load cell");
 
-  scale1.set_scale(calibration_factor); // assign calibration factor
-  scale1.tare();  // Assuming there is no weight on the scale at start up, reset the scale to 0
-
-  scale2.set_scale(calibration_factor);
-  scale2.tare();
-
-  scale3.set_scale(calibration_factor);
-  scale3.tare();
+  for (int i = 0; i < NUM_MSHELLS; i++) {
+      scale[i].set_scale(calibration_factor); // assign calibration factor
+      scale[i].tare();  // Assuming there is no weight on the scale at start up, reset the scale to 0
+  }
 
   Serial.println("Readings:");
 
@@ -116,6 +108,9 @@ void setup() {
   while (!Serial); // wait for serial port to connect.
 #endif
 
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  delay(1000);
   Serial.println("\nHello! I am the Ethernet FeatherWing");
 
   Ethernet.init(WIZ_CS);
@@ -147,70 +142,39 @@ void setup() {
 void loop() {
   Serial.print("Reading: ");
 
-  Serial.print(scale1.get_units(), 1); // scale.get_units() returns a float
+  Serial.print(scale[0].get_units(), 1); // scale.get_units() returns a float
   Serial.print(" ");
-  Serial.print(scale2.get_units(), 1);
+  Serial.print(scale[1].get_units(), 1);
   Serial.print(" ");
-  Serial.print(scale3.get_units(), 1);
-
+  Serial.print(scale[2].get_units(), 1);
   Serial.print(" lbs"); // You can change this to kg but you'll need to refactor the calibration_factor
   Serial.println();
 
-  // trigger the sensor team if at least one of the load cells is over weight
-  int triggered = 0;
-  triggered = (scale1.get_units() > TRIGGER_WEIGHT) || 
-              (scale2.get_units() > TRIGGER_WEIGHT) || 
-              (scale3.get_units() > TRIGGER_WEIGHT);
+//  float paramValue = map((float)random(50), 0.0, 50.0, 0.0, 1.0); // use 0-50 lbs for testing
 
-  Serial.print("BEFORE -- ");
-  Serial.print(triggered);
-  Serial.print(" ");
-  Serial.print(entranceOpen);
-  Serial.print(" ");
-  Serial.println(stayOpenCounter);
+  for (int i = 0; i < NUM_MSHELLS; i++) {
+    if (abs(scale[i].get_units() - currentState[i]) >= VARIANCE) {      // nathalie check this
+      // do some stuff
+    }
+  }
   
-  // open the entrance whenever the load cells are triggered
-  if (triggered) {
-    setNewState(OPEN);
-    stayOpenCounter = 0;
-    Serial.println("triggered, so open");
-  }
+  float paramValue = map(scale[0].get_units(), 0, 50, 0, 1); // map the force in lbs to the range 0-1
 
-  // if it's already open and it's been longer than the delay, close the entrance
-  if (entranceOpen && (stayOpenCounter >= STAY_OPEN)) {
-    setNewState(CLOSED);
-    stayOpenCounter = 0;
-    Serial.println("reset to closed");
-  }
-  // otherwise stay open and increment the counter
-  else if (entranceOpen && (stayOpenCounter < STAY_OPEN)) {
-    setNewState(OPEN);
-    stayOpenCounter += CHECK_INTERVAL;
-    Serial.println("stay open and increment counter");
-  }
-
-  Serial.print("AFTER -- ");
-  Serial.print(triggered);
-  Serial.print(" ");
-  Serial.print(entranceOpen);
-  Serial.print(" ");
-  Serial.println(stayOpenCounter);
-
-  delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
+  delay(CHECK_INTERVAL);
 }
 
 // FUNCTIONS START HERE
 
 //
-// Function: setNewState(int):
+// Function: setNewState(int currentState, int oldState):
 //    Only send an updated value to LX when the state has changed,
 //    minimizing the network traffic generated by these sensors  
 //
-void setNewState(int newState) {
-  if (entranceOpen != newState) {
-    entranceOpen = newState;
-    Serial.print("setting entranceOpen to ");
-    Serial.println(entranceOpen);
+void setNewState(float newState, float oldState) {
+  if (oldState != newState) {
+    oldState = newState;
+    Serial.print("setting current state to ");
+    Serial.println(oldState);
     oscMessage(newState);
   }
 }
@@ -223,7 +187,7 @@ void setNewState(int newState) {
 void oscMessage(float paramValue) {
 
     // configure the address and content of the OSC message
-    OSCMessage msg(OSC_PATH);
+    OSCMessage msg(oscPath[0]);
     msg.add(paramValue);
 
     // create and send the UDP packet
@@ -240,4 +204,5 @@ void oscMessage(float paramValue) {
     
     msg.empty(); //free space occupied by message
 }
+
 

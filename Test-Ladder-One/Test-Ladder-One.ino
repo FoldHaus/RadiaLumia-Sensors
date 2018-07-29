@@ -3,7 +3,7 @@
   5 -> CLK
   6 -> DOUT1
   9 -> DOUT2
-  10 -> DOUT3
+  4 -> DOUT3
   3V -> VCC
   AREF -> VDD
   GND -> GND
@@ -29,7 +29,7 @@
 
 #define DOUT1  6                    // load cell 1 data input
 #define DOUT2  9                    // load cell 2 data input
-#define DOUT3  10                   // load cell 3 data input
+#define DOUT3  4                   // load cell 3 data input
 #define CLK  5
 
 HX711 scale1(DOUT1, CLK);
@@ -157,12 +157,14 @@ void loop() {
   Serial.println();
 
   // trigger the sensor team if at least one of the load cells is over weight
-//  int triggered = (scale1.get_units() > TRIGGER_WEIGHT) || 
-//                  (scale2.get_units() > TRIGGER_WEIGHT) || 
-//                  (scale3.get_units() > TRIGGER_WEIGHT);
+  int triggered = scale1.get_units() > TRIGGER_WEIGHT;
 
-  int triggered = 0;
-  triggered = scale1.get_units() > TRIGGER_WEIGHT;
+  //int triggered = (scale1.get_units() > TRIGGER_WEIGHT) || 
+  //                (scale2.get_units() > TRIGGER_WEIGHT) || 
+  //                (scale3.get_units() > TRIGGER_WEIGHT);
+
+//  int triggered = 0;
+//  triggered = scale3.get_units() > TRIGGER_WEIGHT;
 
   // Triggered -> SetNewState(1), Set Delay to 0
   // Open && Delay > STAY_OPEN -> SetNewState(0)
