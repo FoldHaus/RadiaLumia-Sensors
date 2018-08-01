@@ -22,7 +22,7 @@
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
 #define STAY_OPEN 10000             // Keep the entrance open for 10 seconds after receiving a reading
-#define TRIGGER_WEIGHT 50.0         // Min of 50 lbs to trigger the entrance to open
+#define TRIGGER_WEIGHT 5.0         // Min of 50 lbs to trigger the entrance to open
 
 #define OPEN 1
 #define CLOSED 0
@@ -50,7 +50,7 @@ float paramValue = 0;
 
 IPAddress lxServer(192,168,1,10);
 //IPAddress lxServer(192,168,42,65);  // Nathalie home
-int lxPort = 3030;
+int lxPort = 7878;
 
 // Set the static IP address to use if the DHCP fails to assign
 IPAddress ip(192,168,1,11);
@@ -113,7 +113,7 @@ void setup() {
 #endif
 
 #if !defined(ESP8266) 
-  while (!Serial); // wait for serial port to connect.
+//  while (!Serial); // wait for serial port to connect.
 #endif
 
   Serial.println("\nHello! I am the Ethernet FeatherWing");
@@ -140,6 +140,9 @@ void setup() {
   Serial.println(lxServer);
   Serial.print("LX port: ");
   Serial.println(lxPort);
+
+  oscMessage(0);  // zero the ladder sensor with LX when we start up
+  Serial.println("Sent 0 to LX to get it started");
 }
 
 // LOOP STARTS HERE

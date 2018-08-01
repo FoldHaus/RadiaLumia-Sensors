@@ -37,9 +37,9 @@
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-const char* oscPath[ ] = {"/sensor/mshell/1/pull", "/sensor/mshell/2/pull", "/sensor/mshell/3/pull"};
-float currentState[ ] = {0, 0, 0};    // hold the current state of load cell values here
-HX711 scale[ ] = { {DOUT1, CLK}, {DOUT2, CLK}, {DOUT3, CLK} };
+const char* oscPath[] = {"/sensor/mshell/1/pull", "/sensor/mshell/2/pull", "/sensor/mshell/3/pull"};
+float currentState[] = {0, 0, 0};    // hold the current state of load cell values here
+HX711 scale[] = { {DOUT1, CLK}, {DOUT2, CLK}, {DOUT3, CLK} };
 
 int packetNum = 0;                    // packet number for testing only
 float paramValue = 0;
@@ -105,7 +105,7 @@ void setup() {
 #endif
 
 #if !defined(ESP8266) 
-  while (!Serial); // wait for serial port to connect.
+//  while (!Serial); // wait for serial port to connect.
 #endif
 
   // Open serial communications and wait for port to open:
