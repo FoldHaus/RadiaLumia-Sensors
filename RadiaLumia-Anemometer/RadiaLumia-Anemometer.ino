@@ -1,34 +1,43 @@
 /*
 
  Teensy + Feather adapter pinout:
-  5 -> CLK
-  6 -> DOUT
-  3V -> VCC
-  AREF -> VDD
-  GND -> GND
- 
- The HX711 board can be powered from 2.7V to 5V
+  A6 -> sensorPin
+  3 -> switchPin
+  4 -> ledPin
  
 */
 
-#include "HX711.h"
 #include <SPI.h>
 #include <Ethernet2.h>
 #include <EthernetUdp2.h>
 #include <OSCMessage.h>
 
-// ------------------ Configuration for the load cells ------------------
+// ------------------ Set up variables for anemometer ------------------
 
-#define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
-#define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
-#define STAY_OPEN 5000              // Keep the entrance open for 5 seconds after receiving a reading
-#define TRIGGER WEIGHT 50           // Min of 50 lbs to trigger the entrance to open
+const int sensorPin = A6;   // Input from anemometer
+const int switchPin = 3;    // Override switch
+const int ledPin = 4;       // LED for visual feedback
 
-#define DOUT  6
-#define CLK  5
+int sensorDelay = 1000;     // Delay between sensor readings in ms
 
-HX711 scale(DOUT, CLK);
-int stayOpenCounter = 0;            // Keep the entrance open until we hit the "stay open" time
+int sensorValue = 0;        // Direct value received from anemometer
+float sensorVoltage = 0;    // Calculated voltage based on analog reading from anemometer
+float windSpeed = 0;        // Wind speed in meters per second (m/s)
+
+// This constant maps the value provided from the analog read function, 
+// which ranges from 0 to 1023, to actual voltage, which ranges from 0V to 5V
+
+// float voltageConversionConstant = .004882814; // for arduino uno @ 5v
+float voltageConversionConstant = .003225806; // for teensy @ 3.3v
+
+float voltageMin = 0.42;    // Mininum output voltage from anemometer in mV.
+float windSpeedMin = 0;     // Wind speed in meters/sec corresponding to minimum voltage
+
+float voltageMax = 2.0;     // Maximum output voltage from anemometer in mV.
+float windSpeedMax = 32;    // Wind speed in meters/sec corresponding to maximum voltage
+
+int switchState = 0;        // variable for reading the switch status
+
 
 // ------------------ Configuration for network messaging ------------------
 
@@ -75,16 +84,12 @@ EthernetUDP Udp;
 
 // SETUP STARTS HERE
 
-void setup() {
-  // ------------------ Setup for load cell ------------------
-  
+void setup() {  
   Serial.begin(9600);
-  Serial.println("Starting up our load cell");
 
-  scale.set_scale(calibration_factor); // This value is obtained by using the SparkFun_HX711_Calibration sketch
-  scale.tare();	// Assuming there is no weight on the scale at start up, reset the scale to 0
-
-  Serial.println("Readings:");
+  pinMode(ledPin, OUTPUT);
+  pinMode(switchPin, INPUT);
+  pinMode(sensorPin, INPUT_PULLDOWN);
 
   // ------------------ Setup for networking ------------------
   
@@ -98,7 +103,7 @@ void setup() {
 #endif
 
 #if !defined(ESP8266) 
-  while (!Serial); // wait for serial port to connect.
+//  while (!Serial); // wait for serial port to connect.
 #endif
 
   // Open serial communications and wait for port to open:
@@ -133,27 +138,45 @@ void setup() {
 // LOOP STARTS HERE
 
 void loop() {
-  Serial.print("Reading: ");
-  Serial.print(scale.get_units(), 1); // scale.get_units() returns a float
-  Serial.print(" lbs"); // You can change this to kg but you'll need to refactor the calibration_factor
-  Serial.println();
-
-//  float paramValue = map((float)random(50), 0.0, 50.0, 0.0, 1.0); // use 0-50 lbs for testing
-  float paramValue = map(scale.get_units(), 0, 50, 0, 1); // map the force in lbs to the range 0-1
-  oscMessage(paramValue);
-
-  // TODO for Nathalie -- update the load cell code to open/close the entrance rather than mapping values, 
-  // which will be more useful for the anemometer
- 
-  if (stayOpenCounter < STAY_OPEN) {
-    // keep sending an OSC message to LX to keep the entrance open
-    stayOpenCounter += CHECK_INTERVAL;
-  } else {
-    // send an OSC message to close the entrance
-    stayOpenCounter = 0;
-  }
+  sensorValue = analogRead(sensorPin);                      // value is 0-1023
+  sensorVoltage = sensorValue * voltageConversionConstant;  // Convert sensor value to actual voltage
   
-  delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
+  // Convert voltage value to wind speed using range of max 
+  // and min voltages and wind speed for the anemometer
+
+  // Check if voltage is below minimum value. If so, set wind speed to zero.
+  if (sensorVoltage <= voltageMin){
+    windSpeed = 0;
+  } else {
+    // For voltages above minimum value, use the linear relationship to calculate wind speed.
+    windSpeed = (sensorVoltage - voltageMin) * windSpeedMax / (voltageMax - voltageMin); 
+  }
+   
+   // Print voltage and windspeed to serial
+    Serial.print("Voltage: ");
+    Serial.print(sensorVoltage);
+    Serial.print("\t"); 
+    Serial.print("Wind speed: ");
+    Serial.print(windSpeed); 
+    Serial.print( " m/s");
+    
+    int windSpeedMPH = windSpeed * 2.23693629;
+    Serial.print("\t");
+    Serial.print(windSpeedMPH);
+    Serial.println(" mph");
+  
+    // read the state of the switch value
+    switchState = digitalRead(switchPin);
+  
+    if (windSpeedMPH > 10 || switchState == HIGH) {
+      Serial.println("Wind protection mode.");
+      digitalWrite(ledPin, HIGH);
+    }
+    else {
+      digitalWrite(ledPin, LOW);
+    }
+   
+   delay(sensorDelay);
 }
 
 // FUNCTIONS START HERE
@@ -162,7 +185,6 @@ void oscMessage(float paramValue) {
 
     // configure the address and content of the OSC message
     OSCMessage msg(OSC_PATH);
-//   paramValue = (float)random(100) / 100;    // randomly generate a number between 0 and 1
     msg.add(paramValue);
 
     // create and send the UDP packet

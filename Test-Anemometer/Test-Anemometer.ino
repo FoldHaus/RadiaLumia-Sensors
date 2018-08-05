@@ -1,9 +1,9 @@
 
 //Setup Variables
 
-const int sensorPin = A0; //Defines the pin that the anemometer output is connected to
+const int sensorPin = A6; //Defines the pin that the anemometer output is connected to
 const int switchPin = 3;     // the number of the switch pin
-const int ledPin = 13;      // number of the onboard LED pin
+const int ledPin = 4;      // number of the onboard LED pin
 
 int sensorValue = 0; //Variable stores the value direct from the analog pin
 float sensorVoltage = 0; //Variable that stores the voltage (in Volts) from the anemometer being sent to the analog pin
@@ -30,7 +30,8 @@ int switchState = 0;    // variable for reading the switch status
 void setup() 
 { 
   pinMode(ledPin, OUTPUT);
-  pinMode(switchPin, INPUT);             
+  pinMode(switchPin, INPUT);
+  pinMode(sensorPin, INPUT_PULLDOWN);
   Serial.begin(9600);  //Start the serial connection
 }
 
