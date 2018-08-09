@@ -22,7 +22,7 @@
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 500          // Delay in ms between sensor checks
 #define STAY_OPEN 10000             // Keep the entrance open for 10 seconds after receiving a reading
-#define TRIGGER_WEIGHT 25.0          // Min of 25 lbs to trigger the entrance to open
+#define TRIGGER_WEIGHT 5.0          // Min of 25 lbs to trigger the entrance to open
 
 #define OPEN 1
 #define CLOSED 0
@@ -164,13 +164,6 @@ void loop() {
   triggered = (scale1.get_units() > TRIGGER_WEIGHT) || 
               (scale2.get_units() > TRIGGER_WEIGHT) || 
               (scale3.get_units() > TRIGGER_WEIGHT);
-
-  Serial.print("BEFORE -- ");
-  Serial.print(triggered);
-  Serial.print(" ");
-  Serial.print(entranceOpen);
-  Serial.print(" ");
-  Serial.println(stayOpenCounter);
   
   // open the entrance whenever the load cells are triggered
   if (triggered) {
@@ -191,13 +184,6 @@ void loop() {
     stayOpenCounter += CHECK_INTERVAL;
     Serial.println("stay open and increment counter");
   }
-
-  Serial.print("AFTER -- ");
-  Serial.print(triggered);
-  Serial.print(" ");
-  Serial.print(entranceOpen);
-  Serial.print(" ");
-  Serial.println(stayOpenCounter);
 
   delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
 }
