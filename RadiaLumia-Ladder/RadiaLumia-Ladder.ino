@@ -20,9 +20,9 @@
 // ------------------ Configuration for the load cells ------------------
 
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
-#define CHECK_INTERVAL 2000         // Delay in ms between sensor checks
+#define CHECK_INTERVAL 500          // Delay in ms between sensor checks
 #define STAY_OPEN 10000             // Keep the entrance open for 10 seconds after receiving a reading
-#define TRIGGER_WEIGHT 5.0         // Min of 50 lbs to trigger the entrance to open
+#define TRIGGER_WEIGHT 25.0          // Min of 25 lbs to trigger the entrance to open
 
 #define OPEN 1
 #define CLOSED 0
@@ -141,7 +141,7 @@ void setup() {
   Serial.print("LX port: ");
   Serial.println(lxPort);
 
-  oscMessage(0);  // zero the ladder sensor with LX when we start up
+  oscMessage(CLOSED);  // zero the ladder sensor with LX when we start up
   Serial.println("Sent 0 to LX to get it started");
 }
 
