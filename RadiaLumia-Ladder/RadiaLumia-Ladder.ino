@@ -183,6 +183,8 @@ void loop() {
     setNewState(OPEN);
     stayOpenCounter += CHECK_INTERVAL;
     Serial.println("stay open and increment counter");
+  } else {
+    setNewState(CLOSED);
   }
 
   delay(CHECK_INTERVAL);  // Check to see if anyone is on the ladder every 2 seconds
@@ -200,8 +202,9 @@ void setNewState(int newState) {
     entranceOpen = newState;
     Serial.print("setting entranceOpen to ");
     Serial.println(entranceOpen);
-    oscMessage(newState);
+    // oscMessage(newState);      // used when we were only sending a message at state change
   }
+  oscMessage(newState);           // send a message with the current state on every loop
 }
 
 //
