@@ -19,6 +19,9 @@
 
 // ------------------ Configuration for the load cell ------------------
 
+#define DEBUG                       // uncomment when you want to output info to the console
+#define MAX_FORCE 10                // max force we expect in lbs (top of the range) 
+
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 500          // Delay in ms between sensor checks
 #define VARIANCE 0.01               // difference in reading required to send a new value to LX
@@ -48,12 +51,10 @@ int packetNum = 0;                    // packet number for testing only
 float paramValue = 0;
 
 IPAddress lxServer(192,168,1,10);
-//IPAddress lxServer(192,168,42,65);  // Nathalie home
 int lxPort = 7878;
 
 // Set the static IP address to use if the DHCP fails to assign
 IPAddress ip(192, 168, 1, 11);
-//IPAddress ip(192, 168, 42, 200);  // Nathalie home
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
@@ -85,16 +86,20 @@ EthernetUDP Udp;
 
 void setup() {
   // ------------------ Setup for load cell ------------------
-  
+ 
+#ifdef DEBUG
   Serial.begin(9600);
   Serial.println("Starting up our load cell");
+#endif
 
   for (int i = 0; i < NUM_MSHELLS; i++) {
       scale[i].set_scale(calibration_factor); // assign calibration factor
       scale[i].tare();  // Assuming there is no weight on the scale at start up, reset the scale to 0
   }
-
+  
+#ifdef DEBUG
   Serial.println("Readings:");
+#endif
 
   // ------------------ Setup for networking ------------------
   
@@ -112,24 +117,28 @@ void setup() {
 #endif
 
   // Open serial communications and wait for port to open:
+#ifdef DEBUG
   Serial.begin(115200);
   delay(1000);
   Serial.println("\nHello! I am the Ethernet FeatherWing");
-
-  Ethernet.init(WIZ_CS);
+#endif
   
-  // give the ethernet module time to boot up:
+  // start up the ethernet module and pause for it to boot up
+  Ethernet.init(WIZ_CS);
   delay(1000);
 
   // start the Ethernet connection:
   if (Ethernet.begin(mac) == 0) {
+#ifdef DEBUG
     Serial.println("Failed to configure Ethernet using DHCP");
+#endif
     // no point in carrying on, so do nothing forevermore:
     // try to congifure using IP address instead of DHCP:
     Ethernet.begin(mac, ip);
   }
   Udp.begin(8888);
   
+#ifdef DEBUG
   // print the Ethernet board/shield's IP address:
   Serial.print("My IP address: ");
   Serial.println(Ethernet.localIP());
@@ -138,20 +147,24 @@ void setup() {
   Serial.println(lxServer);
   Serial.print("LX port: ");
   Serial.println(lxPort);
+  Serial.println();
+#endif
 
   // zero out the sensor cache in LX when we start up
   for (int i = 0; i < NUM_MSHELLS; i++) {
     oscMessage(oscPath[i], NOT_PULLED);
+#ifdef DEBUG
     Serial.print("Sent 0 to LX for ");
     Serial.println(oscPath[i]);
+#endif
   }
 }
 
 // LOOP STARTS HERE
 
 void loop() {
+#ifdef DEBUG
   Serial.print("\nReading: ");
-
   Serial.print(scale[0].get_units(), 1); // scale.get_units() returns a float
   Serial.print(" ");
   Serial.print(scale[1].get_units(), 1);
@@ -159,16 +172,11 @@ void loop() {
   Serial.print(scale[2].get_units(), 1);
   Serial.print(" lbs"); // You can change this to kg but you'll need to refactor the calibration_factor
   Serial.println();
+#endif
 
-//  float paramValue = map((float)random(50), 0.0, 50.0, 0.0, 1.0); // use 0-50 lbs for testing
-
-  for (int i = 0; i < NUM_MSHELLS; i++) {
-/*    
- *     if (abs(scale[i].get_units() - currentState[i]) >= VARIANCE) {      // nathalie check this
- *     // do some stuff
- *     }
- */      
-      float paramValue = map(scale[i].get_units(), 0, 20, 0, 1); // map the force in lbs to the range 0-1
+  // iterate through sensors sending values to LX
+  for (int i = 0; i < NUM_MSHELLS; i++) {     
+      float paramValue = map(scale[i].get_units(), 0, MAX_FORCE, 0, 1); // map the force in lbs to the range 0-1
       oscMessage(oscPath[i], paramValue);
   }
   delay(CHECK_INTERVAL);
@@ -207,6 +215,7 @@ void oscMessage(const char* path, float paramValue) {
     msg.send(Udp);   
     Udp.endPacket();
 
+#ifdef DEBUG
     // debugging content printed to the Serial
     packetNum++;
     Serial.print("sent packet ");
@@ -215,7 +224,8 @@ void oscMessage(const char* path, float paramValue) {
     Serial.print(path);
     Serial.print(" with value ");
     Serial.println(paramValue);
-    
+#endif
+
     msg.empty(); //free space occupied by message
 }
 
