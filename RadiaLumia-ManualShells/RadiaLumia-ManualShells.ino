@@ -20,12 +20,16 @@
 // ------------------ Configuration for the load cell ------------------
 
 //#define DEBUG                       // uncomment when you want to output info to the console
-#define MAX_FORCE 10                // max force we expect in lbs (top of the range) 
 
-#define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
-#define CHECK_INTERVAL 500          // Delay in ms between sensor checks
-#define VARIANCE 0.01               // difference in reading required to send a new value to LX
 #define NUM_MSHELLS 3               // total number of manual shells
+
+#define MAX_FORCE 10                // max force we expect in lbs (top of the range) 
+#define CALIB_FACTOR 10500.0        // Make sure to let it start up with base weight already hanging
+
+#define IDLE_INTERVAL 500           // Delay in ms between standard sensor checks
+#define ACTIVE_INTERVAL 100         // Delay in ms between checks during a pull event
+#define STAY_ACTIVE 2000            // Delay after last activity before going back to standard checks
+#define VARIANCE 0.3               // Difference in values needed to go into active mode
 
 #define PULLED 1
 #define NOT_PULLED 0
@@ -35,9 +39,9 @@
 #define DOUT3  4                    // load cell 3 data input
 #define CLK    5
 
-//HX711 scale1(DOUT1, CLK);
-//HX711 scale2(DOUT2, CLK);
-//HX711 scale3(DOUT3, CLK);
+bool activeMode = false;            // Start in idle - true when reading pulls, false otherwise
+int activeCounter = 0;              // Counter to know when we've waited long enough to go back to idle
+int currentDelay = IDLE_INTERVAL;   // Time in ms between sensor reads
 
 // ------------------ Configuration for network messaging ------------------
 
@@ -94,7 +98,7 @@ void setup() {
 #endif
 
   for (int i = 0; i < NUM_MSHELLS; i++) {
-      scale[i].set_scale(calibration_factor); // assign calibration factor
+      scale[i].set_scale(CALIB_FACTOR); // assign calibration factor
       scale[i].tare();  // Assuming there is no weight on the scale at start up, reset the scale to 0
   }
   
@@ -175,9 +179,41 @@ void loop() {
   // iterate through sensors sending values to LX
   for (int i = 0; i < NUM_MSHELLS; i++) {     
       float paramValue = map(scale[i].get_units(), 0, MAX_FORCE, 0, 1); // map the force in lbs to the range 0-1
+
+      // check if the values have changed more than VARIANCE or if values are effectively non-zero
+      if ((abs(paramValue - currentState[i]) >= VARIANCE) || paramValue > VARIANCE) {
+        currentDelay = ACTIVE_INTERVAL;     // shorten delay between reads as we're in a pull event
+        activeMode = true;                  // we're now in active mode
+        
+#ifdef DEBUG
+        Serial.print("Values varied more than VARIANCE. New value ");
+        Serial.print(paramValue);
+        Serial.print(", old value ");
+        Serial.println(currentState[i]);
+#endif
+      } else {
+        activeCounter += ACTIVE_INTERVAL;
+
+        // if we haven't detected an active event and it's been longer than the delay, reset to idle
+        if (activeCounter >= STAY_ACTIVE) {
+          activeMode = false;
+          currentDelay = IDLE_INTERVAL;
+          activeCounter = 0;
+        }
+      }
+
+      // send the OSC message
+      currentState[i] = paramValue;
       oscMessage(oscPath[i], paramValue);
   }
-  delay(CHECK_INTERVAL);
+
+#ifdef DEBUG
+  Serial.print("Delaying for ");
+  Serial.print(currentDelay);
+  Serial.println(" ms");
+#endif
+  
+  delay(currentDelay);
 }
 
 // FUNCTIONS START HERE
