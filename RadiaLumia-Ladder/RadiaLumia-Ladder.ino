@@ -19,7 +19,7 @@
 
 // ------------------ Configuration for the load cells ------------------
 
-#define DEBUG                       // uncomment when you want to output info to the console
+//#define DEBUG                       // uncomment when you want to output info to the console
 
 #define calibration_factor 10500.0  // Make sure to let it start up with base weight already hanging
 #define CHECK_INTERVAL 500          // Delay in ms between sensor checks
@@ -54,7 +54,7 @@ IPAddress lxServer(192,168,1,10);
 int lxPort = 7878;
 
 // Set the static IP address to use if the DHCP fails to assign
-IPAddress ip(192,168,1,11);
+IPAddress ip(192,168,1,101);
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server

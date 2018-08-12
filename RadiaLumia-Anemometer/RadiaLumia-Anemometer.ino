@@ -14,21 +14,24 @@
 
 // ------------------ Set up variables for anemometer ------------------
 
-const int sensorPin = A6;   // Input from anemometer
-const int switchPin = 3;    // Override switch
-const int ledPin = 4;       // LED for visual feedback
+#define DEBUG                       // uncomment when you want to output info to the console
 
-int sensorDelay = 500;     // Delay between sensor readings in ms
+#define CHECK_INTERVAL 500          // Delay in ms between sensor checks
+
+#define SENSOR  A6          // Analog sensor input
+#define SWITCH  3           // Digital input from manual switch
+#define LED     4           // Digital output to the LED
+
+// This constant maps the value provided from the analog read function, 
+// which ranges from 0 to 1023, to actual voltage, which ranges from 0V to 5V
+#define VOLT_CONVERT    0.003225806    // for teensy @ 3.3v
+//#define VOLT_CONVERT  0.004882814    // for arduino uno @ 5v
+
+#define MPS_TO_MPH    2.23693629  // multiplication factor to convert meters/sec to miles/hour
 
 int sensorValue = 0;        // Direct value received from anemometer
 float sensorVoltage = 0;    // Calculated voltage based on analog reading from anemometer
 float windSpeed = 0;        // Wind speed in meters per second (m/s)
-
-// This constant maps the value provided from the analog read function, 
-// which ranges from 0 to 1023, to actual voltage, which ranges from 0V to 5V
-
-// float voltageConversionConstant = .004882814; // for arduino uno @ 5v
-float voltageConversionConstant = .003225806; // for teensy @ 3.3v
 
 float voltageMin = 0.42;    // Mininum output voltage from anemometer in mV.
 float windSpeedMin = 0;     // Wind speed in meters/sec corresponding to minimum voltage
@@ -49,12 +52,10 @@ int packetNum = 0;      // packet number for testing only
 float paramValue = 0;
 
 IPAddress lxServer(192,168,1,10);
-//IPAddress lxServer(10,1,1,10);  // for testing on a switch
 int lxPort = 7878;
 
 // Set the static IP address to use if the DHCP fails to assign
-IPAddress ip(192, 168, 1, 11);
-//IPAddress ip(10, 1, 1, 20);    // for testing on a switch
+IPAddress ip(192, 168, 1, 103);
 
 // Initialize the Ethernet client library
 // with the IP address and port of the server
@@ -85,11 +86,10 @@ EthernetUDP Udp;
 // SETUP STARTS HERE
 
 void setup() {  
-  Serial.begin(9600);
 
-  pinMode(ledPin, OUTPUT);
-  pinMode(switchPin, INPUT);
-  pinMode(sensorPin, INPUT_PULLDOWN);
+  pinMode(LED, OUTPUT);
+  pinMode(SWITCH, INPUT);
+  pinMode(SENSOR, INPUT_PULLDOWN);
 
   // ------------------ Setup for networking ------------------
   
@@ -106,40 +106,45 @@ void setup() {
 //  while (!Serial); // wait for serial port to connect.
 #endif
 
+#ifdef DEBUG
   // Open serial communications and wait for port to open:
-  Serial.begin(115200);
+  Serial.begin(9600);
   delay(1000);
   Serial.println("\nHello! I am the Ethernet FeatherWing");
-
-  Ethernet.init(WIZ_CS);
+#endif
   
-  // give the ethernet module time to boot up:
+  // initialize ethernet module and give it time to boot up
+  Ethernet.init(WIZ_CS);
   delay(1000);
 
   // start the Ethernet connection:
   if (Ethernet.begin(mac) == 0) {
+#ifdef DEBUG
     Serial.println("Failed to configure Ethernet using DHCP");
+#endif
     // no point in carrying on, so do nothing forevermore:
     // try to congifure using IP address instead of DHCP:
     Ethernet.begin(mac, ip);
   }
   Udp.begin(8888);
-  
+
+#ifdef DEBUG
   // print the Ethernet board/shield's IP address:
   Serial.print("My IP address: ");
   Serial.println(Ethernet.localIP());
-
   Serial.print("LX IP address: ");
   Serial.println(lxServer);
   Serial.print("LX port: ");
   Serial.println(lxPort);
+  Serial.println();
+#endif
 }
 
 // LOOP STARTS HERE
 
 void loop() {
-  sensorValue = analogRead(sensorPin);                      // value is 0-1023
-  sensorVoltage = sensorValue * voltageConversionConstant;  // Convert sensor value to actual voltage
+  sensorValue = analogRead(SENSOR);                      // value is 0-1023
+  sensorVoltage = sensorValue * VOLT_CONVERT;  // Convert sensor value to actual voltage
   
   // Convert voltage value to wind speed using range of max 
   // and min voltages and wind speed for the anemometer
@@ -151,34 +156,39 @@ void loop() {
     // For voltages above minimum value, use the linear relationship to calculate wind speed.
     windSpeed = (sensorVoltage - voltageMin) * windSpeedMax / (voltageMax - voltageMin); 
   }
-   
-   // Print voltage and windspeed to serial
-    Serial.print("Voltage: ");
-    Serial.print(sensorVoltage);
-    Serial.print("\t"); 
-    Serial.print("Wind speed: ");
-    Serial.print(windSpeed); 
-    Serial.print( " m/s");
-    
-    int windSpeedMPH = windSpeed * 2.23693629;
-    Serial.print("\t");
-    Serial.print(windSpeedMPH);
-    Serial.println(" mph");
+
+  int windSpeedMPH = windSpeed * MPS_TO_MPH;    // convert from m/s to mph
+
+#ifdef DEBUG
+  // Print voltage and windspeed to serial
+  Serial.print("Voltage: ");
+  Serial.print(sensorVoltage);
+  Serial.print("\t"); 
+  Serial.print("Wind speed: ");
+  Serial.print(windSpeed); 
+  Serial.print( " m/s");
   
-    // read the state of the switch value
-    switchState = digitalRead(switchPin);
-  
-    if (windSpeedMPH > 5 || switchState == HIGH) {
-      Serial.println("Wind protection mode.");
-      digitalWrite(ledPin, HIGH);
-      oscMessage(1);
-    }
-    else {
-      digitalWrite(ledPin, LOW);
-      oscMessage(0);
-    }
-   
-   delay(sensorDelay);
+  Serial.print("\t");
+  Serial.print(windSpeedMPH);
+  Serial.println(" mph");
+#endif
+
+  // read the state of the switch value
+  switchState = digitalRead(SWITCH);
+
+  if (windSpeedMPH > 5 || switchState == HIGH) {
+#ifdef DEBUG
+    Serial.println("Wind protection mode.");
+#endif
+    digitalWrite(LED, HIGH);
+    oscMessage(1);
+  }
+  else {
+    digitalWrite(LED, LOW);
+    oscMessage(0);
+  }
+ 
+  delay(CHECK_INTERVAL);
 }
 
 // FUNCTIONS START HERE
@@ -194,12 +204,14 @@ void oscMessage(float paramValue) {
     msg.send(Udp);   
     Udp.endPacket();
 
+#ifdef DEBUG
     // debugging content printed to the Serial
     packetNum++;
     Serial.print("sent packet ");
     Serial.print(packetNum);
     Serial.print(" with value ");
     Serial.println(paramValue);
+#endif
     
     msg.empty(); //free space occupied by message
 }
