@@ -2,9 +2,9 @@
 Arduino code for listening to Radia's sensor inputs and sending messages to the central computer
 
 ## IP Addresses
-Ladder sensor box: 192.168.1.101
-Manual shell sensor box: 192.168.1.102
-Wind sensor box: 192.168.1.103
+- Ladder sensor box: 192.168.1.101
+- Manual shell sensor box: 192.168.1.102
+- Wind sensor box: 192.168.1.103
 
 ## Todo
 - [x] Update code to send LX data every loop, not only when changed
